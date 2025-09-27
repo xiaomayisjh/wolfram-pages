@@ -1,0 +1,30 @@
+# 生产环境依赖
+# 包含所有基础依赖 + 生产环境优化包
+
+# 基础依赖
+-r requirements.txt
+
+# 生产环境Web服务器
+gunicorn==21.2.0
+gevent==23.7.0
+
+# 缓存支持
+redis==4.6.0
+flask-caching==2.1.0
+
+# 日志记录
+structlog==23.1.0
+
+# 配置管理
+python-dotenv==1.0.0
+
+# 监控和指标
+prometheus-client==0.17.1
+flask-prometheus-metrics==1.2.0
+
+# 安全增强
+flask-talisman==1.1.0
+flask-limiter==3.5.0
+
+# 健康检查
+flask-healthz==1.0.1

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolfram|Alpha</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            .transition-custom {
+                transition: all 0.3s ease;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0066CC',
+                        secondary: '#003366',
+                        lightBlue: '#E6F2FF',
+                        textPrimary: '#333333',
+                        textSecondary: '#666666',
+                        borderColor: '#E0E0E0',
+                        accent: '#FF9900'
+                    },
+                    fontFamily: {
+                        heading: ['"Helvetica Neue"', 'Arial', 'sans-serif'],
+                        body: ['"Lucida Grande"', '"Lucida Sans Unicode"', 'sans-serif'],
+                        mono: ['"Courier New"', 'monospace']
+                    },
+                    spacing: {
+                        '128': '32rem',
+                    },
+                    maxWidth: {
+                        '1200': '1200px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Lucida Grande', 'Lucida Sans Unicode', sans-serif;
+            color: #333333;
+            line-height: 1.5;
+        }
+        
+        .result-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .math-equation {
+            font-family: 'Courier New', monospace;
+            padding: 8px 16px;
+            background-color: #E6F2FF;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        /* 响应式布局调整 */
+        @media (max-width: 767px) {
+            .results-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .navbar-menu {
+                display: none !important;
+            }
+            .mobile-menu-btn {
+                display: block !important;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .results-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+        }
+        
+        /* 加载动画 */
+        .loading-dots span {
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body class="bg-white min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white border-b border-borderColor sticky top-0 z-50">
+        <div class="max-w-1200 mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="#" class="flex-shrink-0 flex items-center">
+                        <span class="text-primary font-heading font-bold text-2xl text-shadow">Wolfram|Alpha</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex md:items-center navbar-menu">
+                    <a href="#" class="px-3 py-2 text-sm font-medium text-textPrimary hover:text-primary transition-custom">示例</a>
+                    <a href="#" class="px-3 py-2 text-sm font-medium text-textPrimary hover:text-primary transition-custom">专业版</a>
+                    <a href="#" class="px-3 py-2 text-sm font-medium text-textPrimary hover:text-primary transition-custom">API</a>
+                    <a href="#" class="px-3 py-2 text-sm font-medium text-textPrimary hover:text-primary transition-custom">关于</a>
+                    <button class="ml-4 px-4 py-2 border border-primary text-primary hover:bg-lightBlue rounded-md transition-custom">登录</button>
+                </div>
+                <div class="flex items-center mobile-menu-btn hidden">
+                    <button type="button" class="text-textPrimary hover:text-primary">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="max-w-1200 mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 标题区域 -->
+        <div class="text-center mb-10">
+            <h1 class="text-[clamp(2rem,5vw,3rem)] font-heading font-bold text-primary mb-4 text-shadow">Wolfram|Alpha</h1>
+            <p class="text-[clamp(1rem,2vw,1.25rem)] text-textSecondary max-w-2xl mx-auto">
+                计算型知识引擎，为您提供数学、科学、技术、文化、社会等领域的答案
+            </p>
+        </div>
+        
+        <!-- 搜索框区域 -->
+        <div class="mb-10 max-w-3xl mx-auto">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="queryInput" 
+                    placeholder="例如：2+2、π的数值、地球到月球的距离..." 
+                    class="w-full h-12 px-4 pr-12 rounded-lg border border-borderColor shadow-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-lg transition-custom"
+                    autocomplete="off"
+                >
+                <button 
+                    id="searchButton" 
+                    class="absolute right-2 top-2 bg-primary hover:bg-secondary text-white font-bold py-2 px-6 rounded-md transition-custom"
+                >
+                    <i class="fas fa-search mr-2"></i>计算
+                </button>
+            </div>
+            <div class="text-sm text-textSecondary mt-4 flex flex-wrap justify-center gap-2">
+                <span class="flex items-center"><i class="fas fa-lightbulb mr-1 text-accent"></i> 示例:</span>
+                <a href="#" class="hover:text-primary transition-custom">解方程 x²+3x+2=0</a>
+                <a href="#" class="hover:text-primary transition-custom">E=mc²</a>
+                <a href="#" class="hover:text-primary transition-custom">巴黎天气</a>
+                <a href="#" class="hover:text-primary transition-custom">Python vs Java</a>
+                <a href="#" class="hover:text-primary transition-custom">更多示例</a>
+            </div>
+        </div>
+        
+        <!-- 加载状态 -->
+        <div id="loadingIndicator" class="hidden bg-lightBlue rounded-lg p-6 mb-8 text-center">
+            <div class="loading-dots mb-4">
+                <span class="inline-block w-3 h-3 bg-primary rounded-full mx-1"></span>
+                <span class="inline-block w-3 h-3 bg-primary rounded-full mx-1"></span>
+                <span class="inline-block w-3 h-3 bg-primary rounded-full mx-1"></span>
+            </div>
+            <p class="text-primary font-medium">正在计算您的问题...</p>
+        </div>
+        
+        <!-- 错误提示 -->
+        <div id="errorMessage" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 text-red-500">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800" id="errorTitle"></h3>
+                    <div class="mt-2 text-sm text-red-700" id="errorContent"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 结果区域 -->
+        <div id="resultsContainer" class="mb-12">
+            <!-- 示例结果 -->
+            <div class="results-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 结果卡片1 -->
+                <div class="result-card bg-white rounded-lg shadow-md p-6 border border-borderColor">
+                    <h3 class="text-xl font-heading font-bold text-secondary mb-4">数学计算</h3>
+                    <div class="mb-3">
+                        <p class="text-textSecondary mb-2">输入:</p>
+                        <p class="font-mono">∫ x² dx</p>
+                    </div>
+                    <div class="math-equation mb-3">
+                        ∫ x² dx = x³/3 + C
+                    </div>
+                    <div class="text-sm text-textSecondary">
+                        <a href="#" class="text-primary hover:underline">显示步骤 <i class="fas fa-angle-right ml-1"></i></a>
+                    </div>
+                </div>
+                
+                <!-- 结果卡片2 -->
+                <div class="result-card bg-white rounded-lg shadow-md p-6 border border-borderColor">
+                    <h3 class="text-xl font-heading font-bold text-secondary mb-4">科学数据</h3>
+                    <div class="mb-3">
+                        <p class="text-textSecondary mb-2">光速:</p>
+                        <p class="text-lg font-semibold">299,792,458 米/秒</p>
+                    </div>
+                    <div class="text-sm text-textSecondary">
+                        <p class="mb-1">真空中的光速是物理学常数</p>
+                        <a href="#" class="text-primary hover:underline">更多属性 <i class="fas fa-angle-right ml-1"></i></a>
+                    </div>
+                </div>
+                
+                <!-- 结果卡片3 -->
+                <div class="result-card bg-white rounded-lg shadow-md p-6 border border-borderColor">
+                    <h3 class="text-xl font-heading font-bold text-secondary mb-4">单位转换</h3>
+                    <div class="mb-3">
+                        <p class="text-textSecondary mb-2">1英里 =</p>
+                        <p class="text-lg font-semibold">1.609344 公里</p>
+                    </div>
+                    <div class="text-sm text-textSecondary">
+                        <a href="#" class="text-primary hover:underline">其他单位 <i class="fas fa-angle-right ml-1"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 快速示例 -->
+        <div class="bg-lightBlue rounded-lg p-6 mb-10">
+            <h3 class="text-xl font-heading font-bold text-secondary mb-4">探索示例</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <a href="#" class="text-primary hover:text-secondary transition-custom">数学函数图像</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">化学方程式配平</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">天体位置</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">股票数据</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">历史事件时间线</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">营养成分分析</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">矩阵运算</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">物理公式求解</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">编程语言比较</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">货币汇率</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">音乐理论</a>
+                <a href="#" class="text-primary hover:text-secondary transition-custom">更多示例...</a>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="bg-gray-50 border-t border-borderColor py-8">
+        <div class="max-w-1200 mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h4 class="text-sm font-bold text-textPrimary mb-4 uppercase">关于 Wolfram|Alpha</h4>
+                    <ul class="text-sm text-textSecondary space-y-2">
+                        <li><a href="#" class="hover:text-primary transition-custom">关于我们</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">新闻</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">招贤纳士</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">联系我们</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-textPrimary mb-4 uppercase">产品</h4>
+                    <ul class="text-sm text-textSecondary space-y-2">
+                        <li><a href="#" class="hover:text-primary transition-custom">Wolfram|Alpha 专业版</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">移动应用</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">API</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">企业解决方案</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-textPrimary mb-4 uppercase">资源</h4>
+                    <ul class="text-sm text-textSecondary space-y-2">
+                        <li><a href="#" class="hover:text-primary transition-custom">示例</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">演示项目</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">文档</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">支持</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-textPrimary mb-4 uppercase">法律</h4>
+                    <ul class="text-sm text-textSecondary space-y-2">
+                        <li><a href="#" class="hover:text-primary transition-custom">服务条款</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">隐私政策</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">Cookie 政策</a></li>
+                        <li><a href="#" class="hover:text-primary transition-custom">版权信息</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-6 border-t border-borderColor text-center text-sm text-textSecondary">
+                <p>© 2025 Wolfram Alpha LLC. 保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const queryInput = document.getElementById('queryInput');
+            const searchButton = document.getElementById('searchButton');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            // API配置
+            const API_CONFIG = {
+                appid: "3H4296-5YPAGQUJK7",
+                server: "api.wolframalpha.com",
+                salt: "vFdeaRwBTVqdc5CL",
+                endpoint: "/v2/query.jsp",
+                format: "plaintext,image",
+                output: "json"
+            };
+            
+            // 显示错误消息
+            function showError(title, content) {
+                document.getElementById('errorTitle').textContent = title;
+                document.getElementById('errorContent').textContent = content;
+                errorMessage.classList.remove('hidden');
+            }
+            
+            // 参数排序
+            function sortParams(params) {
+                const sortedKeys = Object.keys(params).sort();
+                return sortedKeys.map(key => `${key}=${encodeURIComponent(params[key])}`).join('');
+            }
+            
+            // 生成签名
+            function generateSignature(params, salt) {
+                const sortedParams = sortParams(params);
+                const signatureStr = sortedParams + salt;
+                return CryptoJS.MD5(signatureStr).toString(CryptoJS.enc.Hex).toUpperCase();
+            }
+            
+            // 构建签名URL
+            function buildSignedUrl(input) {
+                const params = {
+                    input: input,
+                    appid: API_CONFIG.appid,
+                    format: API_CONFIG.format,
+                    output: API_CONFIG.output
+                };
+                
+                const sig = generateSignature(params, API_CONFIG.salt);
+                params.sig = sig;
+                
+                const queryString = new URLSearchParams(params).toString();
+                return `https://${API_CONFIG.server}${API_CONFIG.endpoint}?${queryString}`;
+            }
+            
+            // 处理API响应
+            function processApiResponse(response) {
+                const queryResult = response.queryresult || {};
+                
+                if (!queryResult.success) {
+                    return {
+                        success: false,
+                        error: queryResult.error?.msg || "无法处理查询，请尝试其他问题"
+                    };
+                }
+                
+                const pods = queryResult.pods || [];
+                const assumptions = queryResult.assumptions || [];
+                
+                const disambiguation = assumptions.map(assumption => 
+                    assumption.values?.map(value => ({
+                        name: value.name,
+                        desc: value.desc
+                    })) || []
+                ).flat();
+                
+                return {
+                    success: true,
+                    input: queryResult.inputstring || "",
+                    pods: pods.map(pod => ({
+                        id: pod.id,
+                        title: pod.title,
+                        subpods: pod.subpods.map(subpod => ({
+                            text: subpod.plaintext || "",
+                            image: subpod.img?.src || ""
+                        }))
+                    })),
+                    disambiguation: disambiguation.length > 0 ? disambiguation : null
+                };
+            }
+            
+            // 渲染结果
+            function renderResult(result) {
+                resultsContainer.innerHTML = '';
+                
+                if (!result.success) {
+                    showError('查询失败', result.error);
+                    return;
+                }
+                
+                // 处理消歧义选项
+                if (result.disambiguation) {
+                    let disambiguationHtml = `
+                        <div class="bg-lightBlue rounded-lg p-6 mb-6 border border-primary/20">
+                            <h3 class="text-xl font-heading font-bold text-secondary mb-4">需要进一步明确</h3>
+                            <p class="text-textPrimary mb-4">您的查询可能有以下解释：</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    `;
+                    
+                    result.disambiguation.forEach(option => {
+                        disambiguationHtml += `
+                            <div class="disambiguation-option p-3 rounded-md cursor-pointer border border-borderColor hover:bg-white transition-custom" 
+                                 onclick="handleDisambiguation('${option.name}')">
+                                <p class="font-medium">${option.desc}</p>
+                            </div>
+                        `;
+                    });
+                    
+                    disambiguationHtml += `</div></div>`;
+                    resultsContainer.innerHTML += disambiguationHtml;
+                }
+                
+                // 渲染结果pods
+                let resultsHtml = `<div class="results-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+                
+                result.pods.forEach(pod => {
+                    // 跳过输入解释pod
+                    if (pod.id === "Input") return;
+                    
+                    let podContent = '';
+                    
+                    pod.subpods.forEach(subpod => {
+                        if (subpod.text) {
+                            // 检查是否为数学公式
+                            if (subpod.text.includes('=') || subpod.text.includes('∫') || subpod.text.includes('∑') || subpod.text.includes('√')) {
+                                podContent += `<div class="math-equation my-3">${subpod.text}</div>`;
+                            } else {
+                                podContent += `<p class="my-2">${subpod.text}</p>`;
+                            }
+                        }
+                        
+                        if (subpod.image) {
+                            podContent += `<img src="${subpod.image}" class="my-4 rounded shadow-sm max-w-full" alt="${pod.title}">`;
+                        }
+                    });
+                    
+                    resultsHtml += `
+                        <div class="result-card bg-white rounded-lg shadow-md p-6 border border-borderColor">
+                            <h3 class="text-xl font-heading font-bold text-secondary mb-4">${pod.title}</h3>
+                            ${podContent}
+                            <div class="text-sm text-textSecondary mt-4">
+                                <a href="#" class="text-primary hover:underline">显示更多 <i class="fas fa-angle-right ml-1"></i></a>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                resultsHtml += `</div>`;
+                resultsContainer.innerHTML += resultsHtml;
+                
+                // 重新渲染MathJax
+                if (typeof MathJax !== 'undefined') {
+                    MathJax.typeset();
+                }
+            }
+            
+            // 查询Wolfram Alpha API
+            async function queryWolframAlpha(input) {
+                try {
+                    const url = buildSignedUrl(input);
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`API请求失败: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    return processApiResponse(data);
+                } catch (error) {
+                    console.error("API调用错误:", error);
+                    return { success: false, error: error.message };
+                }
+            }
+            
+            // 搜索按钮点击事件
+            searchButton.addEventListener('click', async function() {
+                const query = queryInput.value.trim();
+                
+                if (!query) {
+                    showError('输入为空', '请输入您要查询的问题或表达式');
+                    return;
+                }
+                
+                // 显示加载状态
+                loadingIndicator.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                resultsContainer.innerHTML = '';
+                
+                try {
+                    // 调用API
+                    const result = await queryWolframAlpha(query);
+                    
+                    // 渲染结果
+                    renderResult(result);
+                } finally {
+                    // 隐藏加载状态
+                    loadingIndicator.classList.add('hidden');
+                }
+            });
+            
+            // 回车键触发搜索
+            queryInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchButton.click();
+                }
+            });
+            
+            // 消歧义处理函数
+            window.handleDisambiguation = function(assumption) {
+                const currentQuery = queryInput.value.trim();
+                queryInput.value = `${currentQuery} ${assumption}`;
+                searchButton.click();
+            };
+        });
+    </script>
+</body>
+</html>

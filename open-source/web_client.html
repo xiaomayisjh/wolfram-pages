@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolfram|Alpha API 客户端</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        .result-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .loading-dots span {
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+        .math-equation {
+            font-family: 'Courier New', monospace;
+            padding: 8px 16px;
+            background-color: #E6F2FF;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-blue-600">Wolfram|Alpha API 客户端</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="apiInfoBtn" class="text-gray-600 hover:text-blue-600">
+                        <i class="fas fa-info-circle mr-1"></i>API信息
+                    </button>
+                    <button id="healthCheckBtn" class="text-gray-600 hover:text-blue-600">
+                        <i class="fas fa-heartbeat mr-1"></i>健康检查
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 查询区域 -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">Wolfram|Alpha 查询</h2>
+            
+            <!-- 查询输入 -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">查询文本</label>
+                <div class="flex space-x-4">
+                    <input 
+                        type="text" 
+                        id="queryInput" 
+                        placeholder="例如：2+2、population of France、H2O..."
+                        class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <button 
+                        id="queryBtn" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <i class="fas fa-search mr-2"></i>查询
+                    </button>
+                </div>
+            </div>
+
+            <!-- 查询选项 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">输出格式</label>
+                    <select id="formatSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="plaintext">纯文本</option>
+                        <option value="xml">XML</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">输出类型</label>
+                    <select id="outputSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                        <option value="plaintext">纯文本</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">API端点</label>
+                    <select id="endpointSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="query">通用查询</option>
+                        <option value="math">数学查询</option>
+                        <option value="science">科学查询</option>
+                        <option value="result">结果文本</option>
+                        <option value="pods">所有Pods</option>
+                        <option value="stepbystep">Step-by-Step</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 快速查询按钮 -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">快速查询示例</label>
+                <div class="flex flex-wrap gap-2">
+                    <button class="quick-query-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200" data-query="2+2">数学: 2+2</button>
+                    <button class="quick-query-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200" data-query="population of France">人口: France</button>
+                    <button class="quick-query-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200" data-query="H2O">化学: H2O</button>
+                    <button class="quick-query-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200" data-query="speed of light">物理: 光速</button>
+                    <button class="quick-query-btn px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200" data-query="weather in Beijing">天气: 北京</button>
+                    <button class="quick-query-btn px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200" data-query="step-by-step solve x^2+5x+1=0">Step-by-Step: 二次方程</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingIndicator" class="hidden bg-blue-50 rounded-lg p-6 mb-8 text-center">
+            <div class="loading-dots mb-4">
+                <span class="inline-block w-3 h-3 bg-blue-600 rounded-full mx-1"></span>
+                <span class="inline-block w-3 h-3 bg-blue-600 rounded-full mx-1"></span>
+                <span class="inline-block w-3 h-3 bg-blue-600 rounded-full mx-1"></span>
+            </div>
+            <p class="text-blue-600 font-medium">正在查询...</p>
+        </div>
+
+        <!-- 错误提示 -->
+        <div id="errorMessage" class="hidden bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 text-red-500">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800" id="errorTitle"></h3>
+                    <div class="mt-2 text-sm text-red-700" id="errorContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果区域 -->
+        <div id="resultsContainer" class="space-y-6">
+            <!-- 结果将在这里显示 -->
+        </div>
+
+        <!-- API信息模态框 -->
+        <div id="apiInfoModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">API 信息</h3>
+                        <button id="closeApiInfo" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="apiInfoContent" class="text-sm text-gray-600">
+                        <!-- API信息将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        class WolframAPIClient {
+            constructor(baseUrl = 'http://localhost:5000') {
+                this.baseUrl = baseUrl;
+            }
+
+            async makeRequest(method, endpoint, data = null) {
+                const url = `${this.baseUrl}${endpoint}`;
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                try {
+                    const response = await fetch(url, options);
+                    const result = await response.json();
+                    return result;
+                } catch (error) {
+                    return { success: false, error: error.message };
+                }
+            }
+
+            async query(input, format = 'plaintext', output = 'json', endpoint = 'query') {
+                if (endpoint === 'query') {
+                    return await this.makeRequest('POST', '/query', {
+                        input, format, output
+                    });
+                } else if (endpoint === 'stepbystep') {
+                    // Step-by-step查询使用POST方法，指定podstate参数
+                    return await this.makeRequest('POST', '/query', {
+                        input: `step-by-step solve ${input}`,
+                        format: 'plaintext',
+                        output: 'json',
+                        podstate: 'Solution__Step-by-step solution'
+                    });
+                } else {
+                    const encodedInput = encodeURIComponent(input);
+                    return await this.makeRequest('GET', `/${endpoint}/${encodedInput}`);
+                }
+            }
+
+            async getApiInfo() {
+                return await this.makeRequest('GET', '/');
+            }
+
+            async healthCheck() {
+                return await this.makeRequest('GET', '/health');
+            }
+        }
+
+        // 创建API客户端
+        const apiClient = new WolframAPIClient();
+
+        // DOM元素
+        const queryInput = document.getElementById('queryInput');
+        const queryBtn = document.getElementById('queryBtn');
+        const formatSelect = document.getElementById('formatSelect');
+        const outputSelect = document.getElementById('outputSelect');
+        const endpointSelect = document.getElementById('endpointSelect');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const apiInfoModal = document.getElementById('apiInfoModal');
+        const apiInfoContent = document.getElementById('apiInfoContent');
+        const apiInfoBtn = document.getElementById('apiInfoBtn');
+        const closeApiInfo = document.getElementById('closeApiInfo');
+        const healthCheckBtn = document.getElementById('healthCheckBtn');
+
+        // 显示错误消息
+        function showError(title, content) {
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorContent').textContent = content;
+            errorMessage.classList.remove('hidden');
+        }
+
+        // 隐藏错误消息
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            loadingIndicator.classList.remove('hidden');
+            hideError();
+        }
+
+        // 隐藏加载状态
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+        }
+
+        // 渲染结果
+        function renderResult(result) {
+            resultsContainer.innerHTML = '';
+
+            if (!result.success) {
+                showError('查询失败', result.error);
+                return;
+            }
+
+            const data = result.data || result;
+            const query = result.query || '';
+
+            // 创建结果卡片
+            const resultCard = document.createElement('div');
+            resultCard.className = 'result-card bg-white rounded-lg shadow-sm p-6 border';
+
+            let content = '';
+
+            if (endpointSelect.value === 'result') {
+                // 简单结果文本
+                content = `
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">查询结果</h3>
+                    <div class="math-equation">${data.result || '无结果'}</div>
+                `;
+            } else if (endpointSelect.value === 'stepbystep') {
+                // Step-by-step结果
+                content = `
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Step-by-Step 解决方案</h3>
+                    <div class="space-y-4">
+                `;
+                
+                const queryResult = data.queryresult || data;
+                if (queryResult.success) {
+                    const pods = queryResult.pods || [];
+                    
+                    // 查找Solution相关的pods
+                    const solutionPods = pods.filter(pod => 
+                        pod.id.includes('Solution') || 
+                        pod.title.includes('Step') ||
+                        pod.title.includes('Solution')
+                    );
+                    
+                    if (solutionPods.length > 0) {
+                        solutionPods.forEach((pod, index) => {
+                            content += `
+                                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                                    <h4 class="font-medium text-blue-800 mb-2">步骤 ${index + 1}: ${pod.title}</h4>
+                                    <div class="text-gray-700">
+                            `;
+                            
+                            pod.subpods.forEach(subpod => {
+                                if (subpod.plaintext) {
+                                    if (subpod.plaintext.includes('=') || subpod.plaintext.includes('∫') || subpod.plaintext.includes('∑')) {
+                                        content += `<div class="math-equation my-2">${subpod.plaintext}</div>`;
+                                    } else {
+                                        content += `<p class="my-2">${subpod.plaintext}</p>`;
+                                    }
+                                }
+                                if (subpod.img && subpod.img.src) {
+                                    content += `<img src="${subpod.img.src}" class="my-2 rounded max-w-full" alt="${pod.title}">`;
+                                }
+                            });
+                            
+                            content += `</div></div>`;
+                        });
+                    } else {
+                        // 如果没有找到Solution pods，显示所有pods
+                        pods.forEach(pod => {
+                            if (pod.id === 'Input') return;
+                            content += `
+                                <div class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded">
+                                    <h4 class="font-medium text-gray-800 mb-2">${pod.title}</h4>
+                                    <div class="text-gray-700">
+                            `;
+                            
+                            pod.subpods.forEach(subpod => {
+                                if (subpod.plaintext) {
+                                    if (subpod.plaintext.includes('=') || subpod.plaintext.includes('∫') || subpod.plaintext.includes('∑')) {
+                                        content += `<div class="math-equation my-2">${subpod.plaintext}</div>`;
+                                    } else {
+                                        content += `<p class="my-2">${subpod.plaintext}</p>`;
+                                    }
+                                }
+                                if (subpod.img && subpod.img.src) {
+                                    content += `<img src="${subpod.img.src}" class="my-2 rounded max-w-full" alt="${pod.title}">`;
+                                }
+                            });
+                            
+                            content += `</div></div>`;
+                        });
+                    }
+                } else {
+                    content += `<p class="text-red-600">查询失败: ${queryResult.error || '未知错误'}</p>`;
+                }
+                
+                content += `</div>`;
+            } else if (endpointSelect.value === 'pods') {
+                // 所有pods
+                content = `
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">所有Pods结果</h3>
+                    <div class="space-y-4">
+                `;
+                
+                if (data.pods && typeof data.pods === 'object') {
+                    for (const [podName, podResults] of Object.entries(data.pods)) {
+                        if (Array.isArray(podResults)) {
+                            content += `
+                                <div class="border-l-4 border-blue-500 pl-4">
+                                    <h4 class="font-medium text-gray-800">${podName}</h4>
+                                    <div class="mt-2 space-y-2">
+                            `;
+                            podResults.forEach(result => {
+                                content += `<p class="text-gray-600">${result}</p>`;
+                            });
+                            content += `</div></div>`;
+                        }
+                    }
+                }
+                content += `</div>`;
+            } else {
+                // 完整查询结果
+                const queryResult = data.queryresult || data;
+                
+                if (queryResult.success) {
+                    const pods = queryResult.pods || [];
+                    content = `
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">查询结果</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    `;
+                    
+                    pods.forEach(pod => {
+                        if (pod.id === 'Input') return; // 跳过输入解释
+                        
+                        let podContent = '';
+                        pod.subpods.forEach(subpod => {
+                            if (subpod.plaintext) {
+                                if (subpod.plaintext.includes('=') || subpod.plaintext.includes('∫') || subpod.plaintext.includes('∑')) {
+                                    podContent += `<div class="math-equation my-2">${subpod.plaintext}</div>`;
+                                } else {
+                                    podContent += `<p class="my-2">${subpod.plaintext}</p>`;
+                                }
+                            }
+                            if (subpod.img && subpod.img.src) {
+                                podContent += `<img src="${subpod.img.src}" class="my-2 rounded max-w-full" alt="${pod.title}">`;
+                            }
+                        });
+                        
+                        content += `
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="font-medium text-gray-800 mb-2">${pod.title}</h4>
+                                ${podContent}
+                            </div>
+                        `;
+                    });
+                    
+                    content += `</div>`;
+                } else {
+                    content = `
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">查询失败</h3>
+                        <p class="text-red-600">${queryResult.error || '未知错误'}</p>
+                    `;
+                }
+            }
+
+            resultCard.innerHTML = content;
+            resultsContainer.appendChild(resultCard);
+
+            // 重新渲染MathJax
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typeset();
+            }
+        }
+
+        // 执行查询
+        async function executeQuery() {
+            const query = queryInput.value.trim();
+            if (!query) {
+                showError('输入为空', '请输入查询内容');
+                return;
+            }
+
+            showLoading();
+            resultsContainer.innerHTML = '';
+
+            try {
+                const format = formatSelect.value;
+                const output = outputSelect.value;
+                const endpoint = endpointSelect.value;
+
+                const result = await apiClient.query(query, format, output, endpoint);
+                renderResult(result);
+            } catch (error) {
+                showError('查询失败', error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 事件监听器
+        queryBtn.addEventListener('click', executeQuery);
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                executeQuery();
+            }
+        });
+
+        // 快速查询按钮
+        document.querySelectorAll('.quick-query-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                queryInput.value = e.target.dataset.query;
+                executeQuery();
+            });
+        });
+
+        // API信息按钮
+        apiInfoBtn.addEventListener('click', async () => {
+            const info = await apiClient.getApiInfo();
+            apiInfoContent.innerHTML = `
+                <pre class="bg-gray-100 p-4 rounded text-xs overflow-auto">${JSON.stringify(info, null, 2)}</pre>
+            `;
+            apiInfoModal.classList.remove('hidden');
+        });
+
+        // 关闭API信息模态框
+        closeApiInfo.addEventListener('click', () => {
+            apiInfoModal.classList.add('hidden');
+        });
+
+        // 健康检查按钮
+        healthCheckBtn.addEventListener('click', async () => {
+            const health = await apiClient.healthCheck();
+            if (health.status === 'healthy') {
+                alert('✅ 服务正常');
+            } else {
+                alert('❌ 服务异常');
+            }
+        });
+
+        // 点击模态框外部关闭
+        apiInfoModal.addEventListener('click', (e) => {
+            if (e.target === apiInfoModal) {
+                apiInfoModal.classList.add('hidden');
+            }
+        });
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Wolfram|Alpha API 客户端已加载');
+        });
+    </script>
+</body>
+</html>

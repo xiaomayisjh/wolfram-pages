@@ -1,0 +1,25 @@
+# 开发环境依赖
+# 包含所有基础依赖 + 开发工具
+
+# 基础依赖
+-r requirements.txt
+
+# 开发工具
+pytest==7.4.3
+pytest-flask==1.3.0
+pytest-cov==4.1.0
+black==23.9.1
+flake8==6.1.0
+isort==5.12.0
+mypy==1.6.1
+
+# 调试工具
+ipdb==0.13.13
+ipython==8.16.1
+
+# 文档生成
+sphinx==7.2.6
+sphinx-rtd-theme==1.3.0
+
+# 测试数据
+faker==19.6.2
