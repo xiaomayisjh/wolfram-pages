@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "wolfram-alpha": {
+      "command": "H:\\项目文件\\wolfram-api\\.venv\\Scripts\\python.exe",
+      "args": ["H:\\项目文件\\wolfram-api\\mcp_wolfram_server.py"],
+      "cwd": "H:\\项目文件\\wolfram-api",
+      "env": {
+        "PYTHONPATH": "H:\\项目文件\\wolfram-api\\open-source"
+      }
+    }
+  }
+}
