@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolfram|Alpha - 计算型知识引擎</title>
+    <script src="https://cdn.tailwindcss.com/3.3.3"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --wolfram-orange: #FF6600;
+            --wolfram-blue: #0066CC;
+            --wolfram-dark-blue: #003366;
+            --wolfram-light-blue: #E6F2FF;
+            --wolfram-gray: #F5F5F5;
+            --wolfram-text: #333333;
+            --wolfram-border: #E0E0E0;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            color: var(--wolfram-text);
+            line-height: 1.6;
+        }
+
+        .wolfram-header {
+            background: linear-gradient(135deg, var(--wolfram-orange) 0%, #FF8533 100%);
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .search-container:focus-within {
+            border-color: var(--wolfram-orange);
+            box-shadow: 0 4px 25px rgba(255,102,0,0.2);
+        }
+
+        .pod-container {
+            background: white;
+            border: 1px solid var(--wolfram-border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .pod-container:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .pod-header {
+            background: var(--wolfram-gray);
+            border-bottom: 1px solid var(--wolfram-border);
+            padding: 12px 16px;
+            font-weight: 600;
+            color: var(--wolfram-text);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .pod-content {
+            padding: 16px;
+        }
+
+        .pod-primary {
+            border-left: 4px solid var(--wolfram-orange);
+        }
+
+        .pod-primary .pod-header {
+            background: linear-gradient(135deg, #FFF5F0 0%, #FFE8D6 100%);
+            color: var(--wolfram-orange);
+            font-weight: 700;
+        }
+
+        .math-display {
+            font-family: 'Times New Roman', serif;
+            font-size: 1.2em;
+            text-align: center;
+            padding: 16px;
+            background: var(--wolfram-light-blue);
+            border-radius: 6px;
+            margin: 12px 0;
+        }
+
+        .assumption-item {
+            background: #FFF9E6;
+            border: 1px solid #FFE066;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .assumption-item:hover {
+            background: #FFF3CC;
+            border-color: #FFCC00;
+        }
+
+        .step-by-step {
+            background: linear-gradient(135deg, #F0F8FF 0%, #E6F2FF 100%);
+            border-left: 4px solid var(--wolfram-blue);
+            border-radius: 6px;
+            padding: 16px;
+            margin: 12px 0;
+        }
+
+        .step-item {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0,102,204,0.2);
+        }
+
+        .step-item:last-child {
+            border-bottom: none;
+        }
+
+        .loading-animation {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,102,0,0.3);
+            border-radius: 50%;
+            border-top-color: var(--wolfram-orange);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 12px 0;
+        }
+
+        .interactive-element {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .interactive-element:hover {
+            background: rgba(255,102,0,0.1);
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        .suggestion-item {
+            background: white;
+            border: 1px solid var(--wolfram-border);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 4px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .suggestion-item:hover {
+            background: var(--wolfram-light-blue);
+            border-color: var(--wolfram-blue);
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: var(--wolfram-gray);
+        }
+
+        .error-container {
+            background: #FFF5F5;
+            border: 1px solid #FEB2B2;
+            border-left: 4px solid #F56565;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .warning-container {
+            background: #FFFBEB;
+            border: 1px solid #FDE68A;
+            border-left: 4px solid #F59E0B;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .tips-container {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-left: 4px solid #10B981;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .mobile-menu {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .desktop-menu {
+                display: none;
+            }
+            .mobile-menu {
+                display: block;
+            }
+            .pod-container {
+                margin-bottom: 12px;
+            }
+            .pod-content {
+                padding: 12px;
+            }
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--wolfram-gray);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--wolfram-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #CCCCCC;
+        }
+    </style>
+
+    <script>
+        // MathJax配置
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航栏 -->
+    <nav class="wolfram-header shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold">Wolfram|Alpha</h1>
+                </div>
+                <div class="desktop-menu flex items-center space-x-6">
+                    <a href="#" class="hover:text-orange-200 transition-colors">示例</a>
+                    <a href="#" class="hover:text-orange-200 transition-colors">专业版</a>
+                    <a href="#" class="hover:text-orange-200 transition-colors">API</a>
+                    <button class="bg-white text-orange-600 px-4 py-2 rounded-md hover:bg-orange-50 transition-colors">
+                        登录
+                    </button>
+                </div>
+                <div class="mobile-menu">
+                    <button id="mobileMenuBtn" class="text-white">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容区域 -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 搜索区域 -->
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4">计算型知识引擎</h2>
+            <p class="text-xl text-gray-600 mb-8">输入任何问题，获得专业的计算结果</p>
+            
+            <div class="search-container max-w-4xl mx-auto p-4">
+                <div class="flex items-center">
+                    <input 
+                        type="text" 
+                        id="queryInput" 
+                        placeholder="例如：solve x^2 + 3x + 2 = 0, population of China, H2O molecular structure..."
+                        class="flex-1 text-lg px-4 py-3 border-none outline-none bg-transparent"
+                        autocomplete="off"
+                    >
+                    <button 
+                        id="searchBtn" 
+                        class="bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-md font-semibold transition-colors flex items-center"
+                    >
+                        <i class="fas fa-search mr-2"></i>
+                        计算
+                    </button>
+                </div>
+                
+                <!-- 搜索建议 -->
+                <div id="suggestions" class="hidden mt-4 text-left">
+                    <div class="text-sm text-gray-600 mb-2">搜索建议：</div>
+                    <div id="suggestionsList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- 快速示例 -->
+            <div class="mt-6 flex flex-wrap justify-center gap-3">
+                <button class="example-btn bg-blue-100 text-blue-800 px-4 py-2 rounded-full hover:bg-blue-200 transition-colors" data-query="2+2">
+                    基础数学
+                </button>
+                <button class="example-btn bg-green-100 text-green-800 px-4 py-2 rounded-full hover:bg-green-200 transition-colors" data-query="solve x^2+5x+6=0">
+                    方程求解
+                </button>
+                <button class="example-btn bg-purple-100 text-purple-800 px-4 py-2 rounded-full hover:bg-purple-200 transition-colors" data-query="derivative of sin(x)">
+                    微积分
+                </button>
+                <button class="example-btn bg-red-100 text-red-800 px-4 py-2 rounded-full hover:bg-red-200 transition-colors" data-query="H2O">
+                    化学
+                </button>
+                <button class="example-btn bg-yellow-100 text-yellow-800 px-4 py-2 rounded-full hover:bg-yellow-200 transition-colors" data-query="population of France">
+                    地理数据
+                </button>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingContainer" class="hidden text-center py-8">
+            <div class="loading-animation mx-auto mb-4"></div>
+            <p class="text-gray-600">正在计算您的问题...</p>
+        </div>
+
+        <!-- 结果区域 -->
+        <div id="resultsContainer" class="space-y-4">
+            <!-- 结果将在这里动态生成 -->
+        </div>
+
+        <!-- 侧边栏 -->
+        <div class="fixed right-4 top-1/2 transform -translate-y-1/2 space-y-4 hidden lg:block">
+            <button id="historyBtn" class="bg-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all" title="查询历史">
+                <i class="fas fa-history text-gray-600"></i>
+            </button>
+            <button id="favoritesBtn" class="bg-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all" title="收藏夹">
+                <i class="fas fa-star text-gray-600"></i>
+            </button>
+            <button id="settingsBtn" class="bg-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all" title="设置">
+                <i class="fas fa-cog text-gray-600"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- 历史记录模态框 -->
+    <div id="historyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-md w-full max-h-96 overflow-hidden">
+                <div class="p-4 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">查询历史</h3>
+                        <button id="closeHistoryModal" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="historyList" class="p-4 max-h-80 overflow-y-auto">
+                    <!-- 历史记录将在这里显示 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局配置
+        const WOLFRAM_CONFIG = {
+            appid: '3H4296-5YPAGQUJK7',
+            server: 'api.wolframalpha.com',
+            sigSalt: 'vFdeaRwBTVqdc5CL',
+            userAgent: 'Wolfram Android App'
+        };
+
+        // 全局变量
+        let queryHistory = JSON.parse(localStorage.getItem('wolframHistory') || '[]');
+        let currentQuery = '';
+
+        // DOM元素
+        const queryInput = document.getElementById('queryInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const suggestions = document.getElementById('suggestions');
+        const suggestionsList = document.getElementById('suggestionsList');
+        const historyModal = document.getElementById('historyModal');
+        const historyList = document.getElementById('historyList');
+
+        // 工具函数
+        function showLoading() {
+            loadingContainer.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+        }
+
+        function hideLoading() {
+            loadingContainer.classList.add('hidden');
+        }
+
+        function showError(title, message) {
+            const errorHtml = `
+                <div class="error-container">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-circle text-red-500 mr-3 mt-1"></i>
+                        <div>
+                            <h3 class="font-semibold text-red-800">${title}</h3>
+                            <p class="text-red-700 mt-1">${message}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.innerHTML = errorHtml;
+        }
+
+        function showWarning(message) {
+            const warningHtml = `
+                <div class="warning-container">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-3 mt-1"></i>
+                        <div>
+                            <p class="text-yellow-800">${message}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', warningHtml);
+        }
+
+        function showTips(tips) {
+            const tipsHtml = `
+                <div class="tips-container">
+                    <div class="flex items-start">
+                        <i class="fas fa-lightbulb text-green-600 mr-3 mt-1"></i>
+                        <div>
+                            <h3 class="font-semibold text-green-800 mb-2">建议</h3>
+                            ${tips.map(tip => `<p class="text-green-700 mb-1">• ${tip}</p>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', tipsHtml);
+        }
+
+        // 签名计算
+        function calculateSignature(queryString) {
+            const params = queryString.split('&')
+                .map(param => param.split('='))
+                .filter(param => param.length === 2)
+                .sort((a, b) => a[0].localeCompare(b[0]));
+
+            let signatureString = WOLFRAM_CONFIG.sigSalt;
+            for (const [key, value] of params) {
+                signatureString += key + decodeURIComponent(value);
+            }
+
+            return CryptoJS.MD5(signatureString).toString().toUpperCase();
+        }
+
+        // 构建签名URL
+        function buildSignedUrl(input, options = {}) {
+            const params = {
+                input: input,
+                appid: WOLFRAM_CONFIG.appid,
+                format: 'plaintext,image',
+                output: 'json',
+                ...options
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const signature = calculateSignature(queryString);
+            params.sig = signature;
+
+            return `https://${WOLFRAM_CONFIG.server}/v2/query.jsp?${new URLSearchParams(params).toString()}`;
+        }
+
+        // Pod图标映射
+        function getPodIcon(podId) {
+            const iconMap = {
+                'Input': 'keyboard',
+                'Result': 'check-circle',
+                'Solution': 'lightbulb',
+                'Plot': 'chart-line',
+                'Graph': 'project-diagram',
+                'Table': 'table',
+                'Formula': 'calculator',
+                'Properties': 'list-ul',
+                'Definition': 'book',
+                'BasicInformation': 'info-circle',
+                'AlternateForm': 'exchange-alt',
+                'DecimalForm': 'hashtag',
+                'NumberLine': 'ruler-horizontal',
+                'Illustration': 'image',
+                'ChemicalStructure': 'atom',
+                'MolecularFormula': 'flask'
+            };
+            return iconMap[podId] || 'info-circle';
+        }
+
+        // 渲染Pod
+        function renderPod(pod) {
+            const isPrimary = pod.primary === true;
+            const icon = getPodIcon(pod.id);
+            
+            let content = '';
+            
+            // 处理子Pod
+            if (pod.subpods && pod.subpods.length > 0) {
+                pod.subpods.forEach(subpod => {
+                    if (subpod.plaintext) {
+                        // 检查是否为数学表达式
+                        if (subpod.plaintext.includes('=') || subpod.plaintext.includes('∫') || 
+                            subpod.plaintext.includes('∑') || subpod.plaintext.includes('√') ||
+                            subpod.plaintext.includes('^') || subpod.plaintext.includes('π')) {
+                            content += `<div class="math-display">${subpod.plaintext}</div>`;
+                        } else {
+                            content += `<p class="mb-3 text-gray-800">${subpod.plaintext}</p>`;
+                        }
+                    }
+                    
+                    if (subpod.img && subpod.img.src) {
+                        content += `<img src="${subpod.img.src}" alt="${pod.title}" class="result-image">`;
+                    }
+                });
+            }
+
+            // 处理states（如step-by-step）
+            if (pod.states && pod.states.length > 0) {
+                content += `
+                    <div class="mt-4">
+                        <p class="text-sm text-gray-600 mb-2">可用选项：</p>
+                        <div class="flex flex-wrap gap-2">
+                `;
+                pod.states.forEach(state => {
+                    content += `
+                        <button class="state-btn bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition-colors" 
+                                data-pod-id="${pod.id}" data-state="${state.name}">
+                            ${state.name}
+                        </button>
+                    `;
+                });
+                content += `</div></div>`;
+            }
+
+            const podHtml = `
+                <div class="pod-container ${isPrimary ? 'pod-primary' : ''}">
+                    <div class="pod-header">
+                        <div class="flex items-center">
+                            <i class="fas fa-${icon} mr-2"></i>
+                            <span>${pod.title}</span>
+                        </div>
+                        ${isPrimary ? '<span class="text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded">主要结果</span>' : ''}
+                    </div>
+                    <div class="pod-content">
+                        ${content}
+                    </div>
+                </div>
+            `;
+
+            return podHtml;
+        }
+
+        // 渲染Assumptions
+        function renderAssumptions(assumptions) {
+            if (!assumptions || assumptions.length === 0) return '';
+
+            let assumptionsHtml = `
+                <div class="pod-container">
+                    <div class="pod-header">
+                        <div class="flex items-center">
+                            <i class="fas fa-question-circle mr-2"></i>
+                            <span>假设和解释</span>
+                        </div>
+                    </div>
+                    <div class="pod-content">
+                        <p class="text-gray-600 mb-4">Wolfram|Alpha对您的输入做出了以下假设：</p>
+            `;
+
+            assumptions.forEach(assumption => {
+                if (assumption.values && assumption.values.length > 0) {
+                    assumptionsHtml += `<div class="mb-4">`;
+                    assumptionsHtml += `<p class="font-medium mb-2">${assumption.template || '选择解释'}</p>`;
+                    
+                    assumption.values.forEach(value => {
+                        assumptionsHtml += `
+                            <div class="assumption-item" onclick="reQueryWithAssumption('${value.input}')">
+                                <strong>${value.name}</strong> - ${value.desc}
+                            </div>
+                        `;
+                    });
+                    assumptionsHtml += `</div>`;
+                }
+            });
+
+            assumptionsHtml += `</div></div>`;
+            return assumptionsHtml;
+        }
+
+        // 处理API响应
+        function processApiResponse(data) {
+            const queryResult = data.queryresult;
+            
+            if (!queryResult) {
+                throw new Error('无效的API响应');
+            }
+
+            if (!queryResult.success) {
+                if (queryResult.error) {
+                    throw new Error(`API错误: ${queryResult.error.msg || queryResult.error}`);
+                }
+                
+                // 处理tips
+                if (queryResult.tips && queryResult.tips.length > 0) {
+                    const tips = queryResult.tips.map(tip => tip.text);
+                    showTips(tips);
+                    return;
+                }
+                
+                throw new Error('查询未成功，请尝试重新表述您的问题');
+            }
+
+            let resultsHtml = '';
+
+            // 渲染assumptions
+            if (queryResult.assumptions && queryResult.assumptions.length > 0) {
+                resultsHtml += renderAssumptions(queryResult.assumptions);
+            }
+
+            // 渲染pods
+            if (queryResult.pods && queryResult.pods.length > 0) {
+                queryResult.pods.forEach(pod => {
+                    resultsHtml += renderPod(pod);
+                });
+            }
+
+            // 处理warnings
+            if (queryResult.warnings && queryResult.warnings.length > 0) {
+                queryResult.warnings.forEach(warning => {
+                    showWarning(warning.text);
+                });
+            }
+
+            resultsContainer.innerHTML = resultsHtml;
+
+            // 重新渲染MathJax
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typeset();
+            }
+
+            // 绑定state按钮事件
+            document.querySelectorAll('.state-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const podId = this.dataset.podId;
+                    const state = this.dataset.state;
+                    reQueryWithState(podId, state);
+                });
+            });
+        }
+
+        // 执行查询
+        async function executeQuery(input, options = {}) {
+            if (!input.trim()) {
+                showError('输入为空', '请输入您要查询的问题或表达式');
+                return;
+            }
+
+            currentQuery = input;
+            showLoading();
+
+            try {
+                const url = buildSignedUrl(input, options);
+                console.log('API请求URL:', url);
+
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': WOLFRAM_CONFIG.userAgent
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API响应:', data);
+
+                processApiResponse(data);
+
+                // 添加到历史记录
+                addToHistory(input);
+
+            } catch (error) {
+                console.error('查询错误:', error);
+                showError('查询失败', error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 使用assumption重新查询
+        function reQueryWithAssumption(assumptionInput) {
+            executeQuery(currentQuery, { assumption: assumptionInput });
+        }
+
+        // 使用state重新查询
+        function reQueryWithState(podId, state) {
+            executeQuery(currentQuery, { podstate: `${podId}__${state}` });
+        }
+
+        // 历史记录管理
+        function addToHistory(query) {
+            const historyItem = {
+                query: query,
+                timestamp: new Date().toISOString()
+            };
+            
+            // 避免重复
+            queryHistory = queryHistory.filter(item => item.query !== query);
+            queryHistory.unshift(historyItem);
+            
+            // 限制历史记录数量
+            if (queryHistory.length > 50) {
+                queryHistory = queryHistory.slice(0, 50);
+            }
+            
+            localStorage.setItem('wolframHistory', JSON.stringify(queryHistory));
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            historyList.innerHTML = '';
+            
+            if (queryHistory.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-500 text-center">暂无查询历史</p>';
+                return;
+            }
+
+            queryHistory.forEach(item => {
+                const date = new Date(item.timestamp).toLocaleDateString('zh-CN');
+                const historyItemHtml = `
+                    <div class="history-item" onclick="executeQuery('${item.query.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-history text-gray-400 mr-3"></i>
+                        <div class="flex-1">
+                            <p class="font-medium">${item.query}</p>
+                            <p class="text-sm text-gray-500">${date}</p>
+                        </div>
+                    </div>
+                `;
+                historyList.insertAdjacentHTML('beforeend', historyItemHtml);
+            });
+        }
+
+        // 搜索建议
+        function showSuggestions(query) {
+            if (query.length < 2) {
+                suggestions.classList.add('hidden');
+                return;
+            }
+
+            const commonSuggestions = [
+                'solve ' + query + ' = 0',
+                'derivative of ' + query,
+                'integral of ' + query,
+                'graph ' + query,
+                'factor ' + query,
+                'simplify ' + query
+            ];
+
+            suggestionsList.innerHTML = '';
+            commonSuggestions.forEach(suggestion => {
+                const suggestionHtml = `
+                    <div class="suggestion-item" onclick="executeQuery('${suggestion}')">
+                        <i class="fas fa-search text-gray-400 mr-2"></i>
+                        ${suggestion}
+                    </div>
+                `;
+                suggestionsList.insertAdjacentHTML('beforeend', suggestionHtml);
+            });
+
+            suggestions.classList.remove('hidden');
+        }
+
+        // 事件监听器
+        searchBtn.addEventListener('click', () => {
+            executeQuery(queryInput.value);
+            suggestions.classList.add('hidden');
+        });
+
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                executeQuery(queryInput.value);
+                suggestions.classList.add('hidden');
+            }
+        });
+
+        queryInput.addEventListener('input', (e) => {
+            showSuggestions(e.target.value);
+        });
+
+        queryInput.addEventListener('focus', () => {
+            if (queryInput.value.length >= 2) {
+                showSuggestions(queryInput.value);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                suggestions.classList.add('hidden');
+            }
+        });
+
+        // 示例按钮
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const query = btn.dataset.query;
+                queryInput.value = query;
+                executeQuery(query);
+            });
+        });
+
+        // 历史记录模态框
+        document.getElementById('historyBtn').addEventListener('click', () => {
+            updateHistoryDisplay();
+            historyModal.classList.remove('hidden');
+        });
+
+        document.getElementById('closeHistoryModal').addEventListener('click', () => {
+            historyModal.classList.add('hidden');
+        });
+
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal) {
+                historyModal.classList.add('hidden');
+            }
+        });
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                queryInput.focus();
+            }
+            if (e.key === 'Escape') {
+                suggestions.classList.add('hidden');
+                historyModal.classList.add('hidden');
+            }
+        });
+
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Wolfram|Alpha Enhanced 已加载');
+            queryInput.focus();
+            
+            // 显示欢迎信息
+            resultsContainer.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-calculator text-6xl text-orange-500 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">欢迎使用 Wolfram|Alpha</h3>
+                    <p class="text-gray-600 mb-6">输入任何数学、科学或事实性问题，获得详细的计算结果</p>
+                    <div class="flex justify-center space-x-4 text-sm text-gray-500">
+                        <span><i class="fas fa-keyboard mr-1"></i> Ctrl+K 快速搜索</span>
+                        <span><i class="fas fa-history mr-1"></i> 查看历史记录</span>
+                    </div>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
